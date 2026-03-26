@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L / T Perceptron Classifier</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+
+:root {
+  --bg: #f7f7f7;
+  --panel: #ffffff;
+  --border: #e0e0e0;
+  --text: #222;
+  --muted: #777;
+  --accent: #333;
+  --cell-on: #333;
+  --cell-off: #fafafa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 16px;
+}
+
+.crt-frame {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 30px;
+  background: var(--panel);
+  max-width: 520px;
+  width: 100%;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* Grid */
+.grid-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.grid-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.grid-outer {
+  border: 1px solid var(--border);
+  padding: 10px;
+  background: #fff;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 70px);
+  grid-template-rows: repeat(4, 70px);
+  gap: 6px;
+}
+
+.cell {
+  background: var(--cell-off);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.cell:hover {
+  background: #eee;
+}
+
+.cell.on {
+  background: var(--cell-on);
+  border-color: var(--cell-on);
+}
+
+/* Buttons */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 310px;
+}
+
+.btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  padding: 10px 0;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  flex: 1;
+  transition: all 0.1s;
+}
+
+.btn:hover {
+  background: #f0f0f0;
+}
+
+.btn-classify {
+  flex: 2;
+  border-color: var(--accent);
+}
+
+.btn-classify:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* Result */
+.result-box {
+  width: 100%;
+  max-width: 310px;
+  border: 1px solid var(--border);
+  padding: 16px;
+  text-align: center;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-label {
+  font-size: 2.5rem;
+  font-weight: 600;
+}
+
+.result-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* raw output */
+.raw {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 12px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="crt-frame">
+  <div class="header">
+    <div class="title">PERCEPTRON</div>
+    <div class="subtitle">L &nbsp;/&nbsp; T &nbsp; Shape Classifier &nbsp;·&nbsp; 4×4 pixel input</div>
+  </div>
+
+  <div class="grid-section">
+    <div class="grid-label">DRAW A SHAPE &nbsp;▼</div>
+
+    <div class="grid-outer">
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="clearGrid()">CLEAR</button>
+      <button class="btn btn-classify" onclick="classify()">CLASSIFY →</button>
+    </div>
+
+    <div class="result-box" id="result-box">
+      <div class="result-label" id="result-label">_</div>
+      <div class="result-sub" id="result-sub">awaiting input</div>
+    </div>
+
+    <div class="raw" id="raw-out"></div>
+  </div>
+</div>
+
+<script>
+  // ── Trained weights from Colab ──────────────────────────────────────────
+  const WEIGHTS = [0.11999999999999998, -3.469446951953614e-18, 0.0, 0.07, -0.019999999999999997, -0.060000000000000005, 0.09999999999999999, 0.09, -0.08, 0.09999999999999999, 0.05, -0.03, -0.02, 0.08, 0.019999999999999997, -0.09999999999999999];
+  const BIAS    = -0.13999999999999999;
+
+  // ── Grid state ──────────────────────────────────────────────────────────
+  const CELLS = 16;
+  let pixels = new Array(CELLS).fill(0);
+  let isDragging = false;
+  let dragVal = null;
+
+  const grid = document.getElementById('grid');
+
+  for (let i = 0; i < CELLS; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.addEventListener('mousedown', e => {
+      isDragging = true;
+      dragVal = pixels[i] === 0 ? 1 : 0;
+      setCell(i, dragVal);
+      e.preventDefault();
+    });
+    cell.addEventListener('mouseenter', () => { if (isDragging) setCell(i, dragVal); });
+    // touch support
+    cell.addEventListener('touchstart', e => {
+      isDragging = true;
+      dragVal = pixels[i] === 0 ? 1 : 0;
+      setCell(i, dragVal);
+      e.preventDefault();
+    }, { passive: false });
+    grid.appendChild(cell);
+  }
+
+  document.addEventListener('mouseup',  () => isDragging = false);
+  document.addEventListener('touchend', () => isDragging = false);
+
+  function setCell(idx, val) {
+    pixels[idx] = val;
+    grid.children[idx].className = 'cell' + (val ? ' on' : '');
+  }
+
+  function clearGrid() {
+    pixels.fill(0);
+    [...grid.children].forEach(c => c.className = 'cell');
+    const box = document.getElementById('result-box');
+    box.className = 'result-box';
+    document.getElementById('result-label').textContent = '_';
+    document.getElementById('result-sub').textContent = 'awaiting input';
+    document.getElementById('raw-out').textContent = '';
+  }
+
+  // ── Perceptron inference ────────────────────────────────────────────────
+  function dotProduct(a, b) {
+    return a.reduce((sum, val, i) => sum + val * b[i], 0);
+  }
+
+  function classify() {
+    if (pixels.every(v => v === 0)) {
+      document.getElementById('result-sub').textContent = 'draw something first';
+      return;
+    }
+
+    const z     = dotProduct(pixels, WEIGHTS) + BIAS;
+    const pred  = z >= 0 ? 1 : 0;   // step activation
+    const label = pred === 1 ? 'T' : 'L';
+
+    const box = document.getElementById('result-box');
+    box.className = 'result-box show-' + label;
+    document.getElementById('result-label').textContent = label;
+    document.getElementById('result-sub').textContent =
+      label === 'L' ? 'classified as L-shape' : 'classified as T-shape';
+
+    document.getElementById('raw-out').textContent =
+      'z = w·x + b = ' + z.toFixed(6) + '  →  ' + (z >= 0 ? '≥0 → T' : '<0 → L');
+  }
+</script>
+
+</body>
+</html>

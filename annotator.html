@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L/T Perceptron Data Annotator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #12121a;
+    --border: #2a2a3a;
+    --accent: #00ffe0;
+    --accent2: #ff4e6a;
+    --text: #c8d0e0;
+    --dim: #4a5068;
+    --cell-off: #1a1a28;
+    --cell-on: #00ffe0;
+    --cell-hover: #003d38;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 0.72rem;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+    margin-bottom: 36px;
+  }
+
+  .main {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .draw-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .grid-wrap {
+    position: relative;
+    padding: 3px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 70px);
+    grid-template-rows: repeat(4, 70px);
+    gap: 3px;
+    background: var(--bg);
+    padding: 3px;
+    border-radius: 2px;
+  }
+
+  .cell {
+    background: var(--cell-off);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.08s, box-shadow 0.08s;
+    position: relative;
+  }
+
+  .cell:hover { background: var(--cell-hover); }
+
+  .cell.on {
+    background: var(--cell-on);
+    box-shadow: 0 0 12px var(--accent), inset 0 0 6px rgba(0,255,224,0.3);
+    border-color: var(--accent);
+  }
+
+  .label-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  .label-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    padding: 10px 32px;
+    border: 2px solid var(--dim);
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+  }
+
+  .label-btn:hover { border-color: var(--text); color: var(--text); }
+
+  .label-btn.selected-L {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 16px rgba(0,255,224,0.3);
+  }
+
+  .label-btn.selected-T {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    box-shadow: 0 0 16px rgba(255,78,106,0.3);
+  }
+
+  .action-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    padding: 9px 22px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.12s;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn.save-btn {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .btn.save-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  /* samples panel */
+  .samples-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 260px;
+    max-width: 320px;
+  }
+
+  .samples-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  .samples-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--dim);
+  }
+
+  .count-badge {
+    font-size: 0.72rem;
+    color: var(--accent);
+  }
+
+  .count-L { color: var(--accent); }
+  .count-T { color: var(--accent2); }
+
+  .samples-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .samples-list::-webkit-scrollbar { width: 3px; }
+  .samples-list::-webkit-scrollbar-track { background: var(--panel); }
+  .samples-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .sample-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 6px 10px;
+    font-size: 0.68rem;
+    color: var(--dim);
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 9px);
+    grid-template-rows: repeat(4, 9px);
+    gap: 1px;
+    flex-shrink: 0;
+  }
+
+  .mini-cell {
+    border-radius: 1px;
+  }
+
+  .mini-cell.on { background: var(--accent); }
+  .mini-cell.on-T { background: var(--accent2); }
+  .mini-cell.off { background: var(--border); }
+
+  .sample-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    width: 18px;
+  }
+
+  .lbl-L { color: var(--accent); }
+  .lbl-T { color: var(--accent2); }
+
+  .sample-idx { color: var(--dim); font-size: 0.6rem; margin-left: auto; }
+
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0 2px;
+    transition: color 0.1s;
+  }
+  .del-btn:hover { color: var(--accent2); }
+
+  .export-row {
+    margin-top: 8px;
+  }
+
+  .status {
+    font-size: 0.68rem;
+    color: var(--dim);
+    letter-spacing: 0.05em;
+    min-height: 18px;
+    text-align: center;
+  }
+
+  .status.ok { color: var(--accent); }
+  .status.err { color: var(--accent2); }
+
+  .progress-bar-wrap {
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.3s;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Perceptron Data Annotator</h1>
+<p class="subtitle">4×4 pixel grid · L / T classification · CSV export</p>
+
+<div class="main">
+
+  <!-- Drawing Panel -->
+  <div class="draw-panel">
+    <div class="grid-wrap">
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="label-row">
+      <button class="label-btn" id="btn-L" onclick="selectLabel('L')">L</button>
+      <button class="label-btn" id="btn-T" onclick="selectLabel('T')">T</button>
+    </div>
+
+    <div class="action-row">
+      <button class="btn" onclick="clearGrid()">CLEAR</button>
+      <button class="btn save-btn" onclick="addSample()">+ ADD SAMPLE</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <!-- Samples Panel -->
+  <div class="samples-panel">
+    <div class="samples-header">
+      <span class="samples-title">SAMPLES</span>
+      <span class="count-badge">
+        <span class="count-L" id="cnt-L">L:0</span>
+        &nbsp;
+        <span class="count-T" id="cnt-T">T:0</span>
+      </span>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress" style="width:0%"></div>
+    </div>
+
+    <div class="samples-list" id="samples-list"></div>
+
+    <div class="export-row">
+      <button class="btn save-btn" style="width:100%" onclick="exportCSV()">↓ EXPORT CSV</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const ROWS = 4, COLS = 4;
+  let cells = new Array(ROWS * COLS).fill(0);
+  let currentLabel = null;
+  let samples = [];
+  let isDragging = false;
+  let dragValue = null;
+
+  // Build grid
+  const grid = document.getElementById('grid');
+  for (let i = 0; i < ROWS * COLS; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.idx = i;
+    cell.addEventListener('mousedown', e => { isDragging = true; dragValue = cells[i] === 0 ? 1 : 0; toggleCell(i, dragValue); e.preventDefault(); });
+    cell.addEventListener('mouseenter', () => { if (isDragging) toggleCell(i, dragValue); });
+    grid.appendChild(cell);
+  }
+  document.addEventListener('mouseup', () => isDragging = false);
+
+  function toggleCell(idx, val) {
+    cells[idx] = val !== undefined ? val : (cells[idx] === 0 ? 1 : 0);
+    grid.children[idx].className = 'cell' + (cells[idx] ? ' on' : '');
+  }
+
+  function clearGrid() {
+    cells.fill(0);
+    [...grid.children].forEach(c => c.className = 'cell');
+  }
+
+  function selectLabel(lbl) {
+    currentLabel = lbl;
+    document.getElementById('btn-L').className = 'label-btn' + (lbl === 'L' ? ' selected-L' : '');
+    document.getElementById('btn-T').className = 'label-btn' + (lbl === 'T' ? ' selected-T' : '');
+  }
+
+  function setStatus(msg, type) {
+    const s = document.getElementById('status');
+    s.textContent = msg;
+    s.className = 'status ' + (type || '');
+    if (type === 'ok') setTimeout(() => { s.textContent = ''; s.className = 'status'; }, 1800);
+  }
+
+  function addSample() {
+    if (!currentLabel) { setStatus('select a label first (L or T)', 'err'); return; }
+    if (cells.every(v => v === 0)) { setStatus('draw something first', 'err'); return; }
+    const sample = { pixels: [...cells], label: currentLabel };
+    samples.push(sample);
+    renderSamples();
+    updateCounts();
+    setStatus('sample #' + samples.length + ' added  [' + currentLabel + ']', 'ok');
+    clearGrid();
+  }
+
+  function deleteSample(idx) {
+    samples.splice(idx, 1);
+    renderSamples();
+    updateCounts();
+  }
+
+  function renderSamples() {
+    const list = document.getElementById('samples-list');
+    list.innerHTML = '';
+    // show newest first
+    [...samples].reverse().forEach((s, ri) => {
+      const idx = samples.length - 1 - ri;
+      const row = document.createElement('div');
+      row.className = 'sample-row';
+
+      // mini grid
+      const mg = document.createElement('div');
+      mg.className = 'mini-grid';
+      s.pixels.forEach(v => {
+        const mc = document.createElement('div');
+        mc.className = 'mini-cell ' + (v ? (s.label === 'L' ? 'on' : 'on-T') : 'off');
+        mg.appendChild(mc);
+      });
+
+      const lbl = document.createElement('span');
+      lbl.className = 'sample-label lbl-' + s.label;
+      lbl.textContent = s.label;
+
+      const num = document.createElement('span');
+      num.className = 'sample-idx';
+      num.textContent = '#' + (idx + 1);
+
+      const del = document.createElement('button');
+      del.className = 'del-btn';
+      del.textContent = '✕';
+      del.onclick = () => deleteSample(idx);
+
+      row.appendChild(mg);
+      row.appendChild(lbl);
+      row.appendChild(num);
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+
+    // progress toward 100
+    const pct = Math.min(samples.length / 100 * 100, 100);
+    document.getElementById('progress').style.width = pct + '%';
+  }
+
+  function updateCounts() {
+    const L = samples.filter(s => s.label === 'L').length;
+    const T = samples.filter(s => s.label === 'T').length;
+    document.getElementById('cnt-L').textContent = 'L:' + L;
+    document.getElementById('cnt-T').textContent = 'T:' + T;
+  }
+
+  function exportCSV() {
+    if (samples.length === 0) { setStatus('no samples to export', 'err'); return; }
+    const header = Array.from({length: 16}, (_, i) => 'p' + i).join(',') + ',label';
+    const rows = samples.map(s => s.pixels.join(',') + ',' + s.label);
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lt_samples.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('exported ' + samples.length + ' samples', 'ok');
+  }
+</script>
+</body>
+</html>
