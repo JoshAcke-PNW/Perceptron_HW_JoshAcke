@@ -26,4 +26,4 @@ How it works:
 
 Live site:
 
-https://yourusername.github.io/repo-name
+https://joshacke-pnw.github.io/Perceptron_HW_JoshAcke/
